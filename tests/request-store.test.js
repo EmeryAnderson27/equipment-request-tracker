@@ -6,6 +6,7 @@ import {
   STORAGE_KEY,
   appendRequest,
   createRequest,
+  filterRequests,
   loadRequests,
   saveRequests,
 } from "../src/request-store.js";
@@ -51,7 +52,7 @@ test("createRequest trims input and adds system fields", () => {
 
 test("createRequest reports missing required fields including priority", () => {
   assert.throws(
-    () => createRequest({ ...validInput, requester: "", equipment: " " }),
+    () => createRequest({ ...validInput, requester: "", equipment: " ", priority: "" }),
     (error) => {
       assert.ok(error instanceof RequestValidationError);
       assert.deepEqual(Object.keys(error.errors), ["requester", "equipment", "priority"]);
@@ -107,4 +108,58 @@ test("loadRequests assigns Medium priority to older requests", () => {
   storage.setItem(STORAGE_KEY, JSON.stringify([olderRequest]));
 
   assert.deepEqual(loadRequests(storage), [{ ...olderRequest, priority: "Medium" }]);
+});
+
+test("filterRequests supports All and each individual priority", () => {
+  const requests = [
+    { id: "high", priority: "High" },
+    { id: "medium", priority: "Medium" },
+    { id: "low", priority: "Low" },
+  ];
+
+  assert.deepEqual(filterRequests(requests, "All"), requests);
+  assert.deepEqual(filterRequests(requests, "Low"), [requests[2]]);
+  assert.deepEqual(filterRequests(requests, "Medium"), [requests[1]]);
+  assert.deepEqual(filterRequests(requests, "High"), [requests[0]]);
+});
+
+test("filterRequests preserves newest-first order and does not change requests", () => {
+  const requests = [
+    { id: "new-high", priority: "High" },
+    { id: "new-medium", priority: "Medium" },
+    { id: "old-high", priority: "High" },
+  ];
+  const original = structuredClone(requests);
+
+  const result = filterRequests(requests, "High");
+
+  assert.deepEqual(result.map((request) => request.id), ["new-high", "old-high"]);
+  assert.deepEqual(requests, original);
+  assert.notEqual(result, requests);
+});
+
+test("filterRequests treats older requests without priority as Medium", () => {
+  const olderRequest = { id: "legacy" };
+
+  assert.deepEqual(filterRequests([olderRequest], "Medium"), [olderRequest]);
+  assert.deepEqual(filterRequests([olderRequest], "Low"), []);
+});
+
+test("filterRequests returns no matches for a priority with no requests", () => {
+  assert.deepEqual(filterRequests([{ id: "low", priority: "Low" }], "High"), []);
+});
+
+test("filter remains active after adding a request and includes it when it matches", () => {
+  const existing = [
+    { id: "existing-high", priority: "High" },
+    { id: "existing-low", priority: "Low" },
+  ];
+  const added = { id: "added-high", priority: "High" };
+  const updated = appendRequest(existing, added);
+
+  assert.deepEqual(filterRequests(updated, "High").map((request) => request.id), [
+    "added-high",
+    "existing-high",
+  ]);
+  assert.deepEqual(existing.map((request) => request.id), ["existing-high", "existing-low"]);
 });
