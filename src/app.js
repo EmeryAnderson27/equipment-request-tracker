@@ -63,6 +63,7 @@ function createRequestRow(request) {
     request.equipment,
     formatDate(request.neededBy),
     request.reason,
+    request.priority ?? "Medium",
     formatDateTime(request.createdAt),
   ];
 
