@@ -57,6 +57,12 @@ export function appendRequest(requests, request) {
   return [request, ...requests];
 }
 
+export function filterRequests(requests, priority = "All") {
+  if (priority === "All") return [...requests];
+
+  return requests.filter((request) => (request.priority ?? "Medium") === priority);
+}
+
 export function loadRequests(storage = globalThis.localStorage) {
   if (!storage) return [];
 
@@ -65,12 +71,7 @@ export function loadRequests(storage = globalThis.localStorage) {
     if (!stored) return [];
 
     const parsed = JSON.parse(stored);
-    return Array.isArray(parsed)
-      ? parsed.filter(isRequestRecord).map((request) => ({
-          ...request,
-          priority: request.priority ?? "Medium",
-        }))
-      : [];
+    return Array.isArray(parsed) ? parsed.filter(isRequestRecord) : [];
   } catch {
     return [];
   }
