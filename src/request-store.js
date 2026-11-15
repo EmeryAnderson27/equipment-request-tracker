@@ -71,12 +71,7 @@ export function loadRequests(storage = globalThis.localStorage) {
     if (!stored) return [];
 
     const parsed = JSON.parse(stored);
-    return Array.isArray(parsed)
-      ? parsed.filter(isRequestRecord).map((request) => ({
-          ...request,
-          priority: request.priority ?? "Medium",
-        }))
-      : [];
+    return Array.isArray(parsed) ? parsed.filter(isRequestRecord) : [];
   } catch {
     return [];
   }

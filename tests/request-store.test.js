@@ -99,7 +99,7 @@ test("loadRequests safely handles damaged stored data", () => {
   assert.deepEqual(loadRequests(storage), []);
 });
 
-test("loadRequests assigns Medium priority to older requests", () => {
+test("loadRequests preserves older requests without priority and they filter as Medium", () => {
   const storage = new MemoryStorage();
   const { priority, ...olderRequest } = createRequest(validInput, {
     id: "request-3",
@@ -107,7 +107,32 @@ test("loadRequests assigns Medium priority to older requests", () => {
   });
   storage.setItem(STORAGE_KEY, JSON.stringify([olderRequest]));
 
-  assert.deepEqual(loadRequests(storage), [{ ...olderRequest, priority: "Medium" }]);
+  const loadedRequests = loadRequests(storage);
+
+  assert.deepEqual(loadedRequests, [olderRequest]);
+  assert.equal(Object.hasOwn(loadedRequests[0], "priority"), false);
+  assert.deepEqual(filterRequests(loadedRequests, "Medium"), [olderRequest]);
+});
+
+test("saving a new request does not add priority to an older stored request", () => {
+  const storage = new MemoryStorage();
+  const { priority, ...olderRequest } = createRequest(validInput, {
+    id: "request-legacy",
+    now: new Date("2026-08-16T12:00:00.000Z"),
+  });
+  storage.setItem(STORAGE_KEY, JSON.stringify([olderRequest]));
+
+  const newRequest = createRequest(validInput, {
+    id: "request-new",
+    now: new Date("2026-08-17T12:00:00.000Z"),
+  });
+  const requests = appendRequest(loadRequests(storage), newRequest);
+  saveRequests(requests, storage);
+
+  const storedRequests = JSON.parse(storage.getItem(STORAGE_KEY));
+  assert.deepEqual(storedRequests[1], olderRequest);
+  assert.equal(Object.hasOwn(storedRequests[1], "priority"), false);
+  assert.equal(storedRequests[0].priority, "High");
 });
 
 test("filterRequests supports All and each individual priority", () => {
